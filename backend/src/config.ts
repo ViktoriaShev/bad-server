@@ -14,7 +14,6 @@ export const REFRESH_TOKEN = {
     cookie: {
         name: 'refreshToken',
         options: {
-            domain: 'localhost',
             httpOnly: true,
             sameSite: 'strict',
             secure: false,

@@ -34,17 +34,16 @@ app.use(cookieParser())
 
 app.use(limiter)
 
-app.use(serveStatic(path.join(__dirname, 'public')))
-
 app.use(
     cors({
-        origin: process.env.ORIGIN_ALLOW,
-        methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+        origin: ['http://localhost', 'http://localhost:5173'], // Разрешаем оба домена
         credentials: true,
     })
 )
+app.use(serveStatic(path.join(__dirname, 'public')))
 app.use(urlencoded({ extended: true }))
 app.use(json())
+app.options('*', cors())
 app.use(ExpressMongoSanitize())
 app.use(routes)
 app.use(errors())
