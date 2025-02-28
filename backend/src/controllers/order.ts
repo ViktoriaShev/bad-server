@@ -16,7 +16,7 @@ export const getOrders = async (
     try {
         const {
             page = 1,
-            limit = 10,
+            limit = 10, // Значение по умолчанию
             sortField = 'createdAt',
             sortOrder = 'desc',
             status,
@@ -26,6 +26,10 @@ export const getOrders = async (
             orderDateTo,
             search,
         } = req.query
+
+        // Ограничиваем лимит до 10
+        const pageSize = Math.min(Number(limit) || 10, 10)
+        const currentPage = Math.max(Number(page) || 1, 1)
 
         const filters: FilterQuery<Partial<IOrder>> = {}
 
@@ -115,8 +119,8 @@ export const getOrders = async (
 
         aggregatePipeline.push(
             { $sort: sort },
-            { $skip: (Number(page) - 1) * Number(limit) },
-            { $limit: Number(limit) },
+            { $skip: (currentPage - 1) * pageSize },
+            { $limit: pageSize },
             {
                 $group: {
                     _id: '$_id',
@@ -132,15 +136,15 @@ export const getOrders = async (
 
         const orders = await Order.aggregate(aggregatePipeline)
         const totalOrders = await Order.countDocuments(filters)
-        const totalPages = Math.ceil(totalOrders / Number(limit))
+        const totalPages = Math.ceil(totalOrders / pageSize)
 
         res.status(200).json({
             orders,
             pagination: {
                 totalOrders,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage,
+                pageSize,
             },
         })
     } catch (error) {

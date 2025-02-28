@@ -46,7 +46,6 @@ app.use(
 app.use(urlencoded({ extended: true }))
 app.use(json())
 app.use(ExpressMongoSanitize())
-app.options('*', cors())
 app.use(routes)
 app.use(errors())
 app.use(errorHandler)
