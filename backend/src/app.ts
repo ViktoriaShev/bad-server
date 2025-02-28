@@ -4,6 +4,7 @@ import cors from 'cors'
 import 'dotenv/config'
 import express, { json, urlencoded } from 'express'
 import mongoose from 'mongoose'
+import ExpressMongoSanitize from 'express-mongo-sanitize'
 import path from 'path'
 import helmet from 'helmet'
 import { DB_ADDRESS } from './config'
@@ -44,7 +45,8 @@ app.use(
 )
 app.use(urlencoded({ extended: true }))
 app.use(json())
-
+app.use(ExpressMongoSanitize())
+app.options('*', cors())
 app.use(routes)
 app.use(errors())
 app.use(errorHandler)
