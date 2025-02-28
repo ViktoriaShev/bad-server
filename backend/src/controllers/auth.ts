@@ -8,25 +8,22 @@ import BadRequestError from '../errors/bad-request-error'
 import ConflictError from '../errors/conflict-error'
 import NotFoundError from '../errors/not-found-error'
 import UnauthorizedError from '../errors/unauthorized-error'
-import User from '../models/user'
+import User, { generateAccessToken, generateRefreshToken } from '../models/user'
 
 // POST /auth/login
 const login = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { email, password } = req.body
         const user = await User.findUserByCredentials(email, password)
-        const accessToken = user.generateAccessToken()
-        const refreshToken = await user.generateRefreshToken()
+        const accessToken = generateAccessToken(user)
+        const refreshToken = await generateRefreshToken(user)
+
         res.cookie(
             REFRESH_TOKEN.cookie.name,
             refreshToken,
             REFRESH_TOKEN.cookie.options
         )
-        return res.json({
-            success: true,
-            user,
-            accessToken,
-        })
+        return res.json({ success: true, user, accessToken })
     } catch (err) {
         return next(err)
     }
@@ -38,19 +35,18 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
         const { email, password, name } = req.body
         const newUser = new User({ email, password, name })
         await newUser.save()
-        const accessToken = newUser.generateAccessToken()
-        const refreshToken = await newUser.generateRefreshToken()
+
+        const accessToken = generateAccessToken(newUser)
+        const refreshToken = await generateRefreshToken(newUser)
 
         res.cookie(
             REFRESH_TOKEN.cookie.name,
             refreshToken,
             REFRESH_TOKEN.cookie.options
         )
-        return res.status(constants.HTTP_STATUS_CREATED).json({
-            success: true,
-            user: newUser,
-            accessToken,
-        })
+        return res
+            .status(constants.HTTP_STATUS_CREATED)
+            .json({ success: true, user: newUser, accessToken })
     } catch (error) {
         if (error instanceof MongooseError.ValidationError) {
             return next(new BadRequestError(error.message))
@@ -73,10 +69,7 @@ const getCurrentUser = async (
     try {
         const userId = res.locals.user._id
         const user = await User.findById(userId).orFail(
-            () =>
-                new NotFoundError(
-                    'Пользователь по заданному id отсутствует в базе'
-                )
+            () => new NotFoundError('Пользователь не найден')
         )
         res.json({ user, success: true })
     } catch (error) {
@@ -84,83 +77,97 @@ const getCurrentUser = async (
     }
 }
 
-// Можно лучше: вынести общую логику получения данных из refresh токена
-const deleteRefreshTokenInUser = async (
-    req: Request,
-    _res: Response,
-    _next: NextFunction
-) => {
+const deleteRefreshTokenInUser = async (req: Request) => {
     const { cookies } = req
-    const rfTkn = cookies[REFRESH_TOKEN.cookie.name]
+    const refreshToken = cookies[REFRESH_TOKEN.cookie.name]
 
-    if (!rfTkn) {
+    if (!refreshToken) {
         throw new UnauthorizedError('Не валидный токен')
     }
+    let decodedRefreshTkn: JwtPayload
+    try {
+        decodedRefreshTkn = jwt.verify(
+            refreshToken,
+            REFRESH_TOKEN.secret
+        ) as JwtPayload
+    } catch (error) {
+        throw new UnauthorizedError('Невалидный refresh-токен')
+    }
 
-    const decodedRefreshTkn = jwt.verify(
-        rfTkn,
-        REFRESH_TOKEN.secret
-    ) as JwtPayload
-    const user = await User.findOne({
-        _id: decodedRefreshTkn._id,
-    }).orFail(() => new UnauthorizedError('Пользователь не найден в базе'))
+    const user = await User.findById(decodedRefreshTkn._id).orFail(
+        () => new UnauthorizedError('Пользователь не найден')
+    )
 
-    const rTknHash = crypto
+    const refreshTokenHash = crypto
         .createHmac('sha256', REFRESH_TOKEN.secret)
-        .update(rfTkn)
+        .update(refreshToken)
         .digest('hex')
 
-    user.tokens = user.tokens.filter((tokenObj) => tokenObj.token !== rTknHash)
+    const tokenIndex = user.tokens.findIndex(
+        (tokenObj) => tokenObj.token === refreshTokenHash
+    )
 
+    if (tokenIndex === -1) {
+        throw new UnauthorizedError('Невалидный refresh-токен')
+    }
+
+    user.tokens.splice(tokenIndex, 1)
     await user.save()
 
     return user
 }
 
-// Реализация удаления токена из базы может отличаться
-// GET  /auth/logout
 const logout = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        await deleteRefreshTokenInUser(req, res, next)
-        const expireCookieOptions = {
+        console.log('Logout request received')
+        await deleteRefreshTokenInUser(req)
+        console.log('Logout request received')
+        res.clearCookie(REFRESH_TOKEN.cookie.name, {
             ...REFRESH_TOKEN.cookie.options,
-            maxAge: -1,
-        }
-        res.cookie(REFRESH_TOKEN.cookie.name, '', expireCookieOptions)
-        res.status(200).json({
-            success: true,
+            expires: new Date(0),
         })
+
+        res.status(200).json({ success: true })
     } catch (error) {
         next(error)
     }
 }
 
-// GET  /auth/token
 const refreshAccessToken = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
     try {
-        const userWithRefreshTkn = await deleteRefreshTokenInUser(
-            req,
-            res,
-            next
-        )
-        const accessToken = await userWithRefreshTkn.generateAccessToken()
-        const refreshToken = await userWithRefreshTkn.generateRefreshToken()
+        const user = await deleteRefreshTokenInUser(req)
+        const accessToken = generateAccessToken(user)
+        const refreshToken = await generateRefreshToken(user)
+
         res.cookie(
             REFRESH_TOKEN.cookie.name,
             refreshToken,
             REFRESH_TOKEN.cookie.options
         )
-        return res.json({
-            success: true,
-            user: userWithRefreshTkn,
-            accessToken,
-        })
+
+        res.json({ success: true, user, accessToken })
     } catch (error) {
-        return next(error)
+        next(error)
+    }
+}
+
+const updateCurrentUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = res.locals.user._id
+        const updatedUser = await User.findByIdAndUpdate(userId, req.body, {
+            new: true,
+        }).orFail(() => new NotFoundError('Пользователь не найден'))
+        res.status(200).json(updatedUser)
+    } catch (error) {
+        next(error)
     }
 }
 
@@ -180,27 +187,6 @@ const getCurrentUserRoles = async (
                 )
         )
         res.status(200).json(res.locals.user.roles)
-    } catch (error) {
-        next(error)
-    }
-}
-
-const updateCurrentUser = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    const userId = res.locals.user._id
-    try {
-        const updatedUser = await User.findByIdAndUpdate(userId, req.body, {
-            new: true,
-        }).orFail(
-            () =>
-                new NotFoundError(
-                    'Пользователь по заданному id отсутствует в базе'
-                )
-        )
-        res.status(200).json(updatedUser)
     } catch (error) {
         next(error)
     }

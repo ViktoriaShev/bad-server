@@ -42,9 +42,8 @@ const createProduct = async (
     try {
         const { description, category, price, title, image } = req.body
 
-        // Переносим картинку из временной папки
         if (image) {
-            movingFile(
+            await movingFile(
                 image.fileName,
                 join(__dirname, `../public/${process.env.UPLOAD_PATH_TEMP}`),
                 join(__dirname, `../public/${process.env.UPLOAD_PATH}`)
@@ -72,7 +71,6 @@ const createProduct = async (
     }
 }
 
-// TODO: Добавить guard admin
 // PUT /product
 const updateProduct = async (
     req: Request,
@@ -83,13 +81,19 @@ const updateProduct = async (
         const { productId } = req.params
         const { image } = req.body
 
-        // Переносим картинку из временной папки
         if (image) {
-            movingFile(
-                image.fileName,
-                join(__dirname, `../public/${process.env.UPLOAD_PATH_TEMP}`),
-                join(__dirname, `../public/${process.env.UPLOAD_PATH}`)
-            )
+            try {
+                await movingFile(
+                    image.fileName,
+                    join(
+                        __dirname,
+                        `../public/${process.env.UPLOAD_PATH_TEMP}`
+                    ),
+                    join(__dirname, `../public/${process.env.UPLOAD_PATH}`)
+                )
+            } catch (err) {
+                throw new Error('Ошибка при сохранении файла')
+            }
         }
 
         const product = await Product.findByIdAndUpdate(
@@ -103,6 +107,7 @@ const updateProduct = async (
             },
             { runValidators: true, new: true }
         ).orFail(() => new NotFoundError('Нет товара по заданному id'))
+
         return res.send(product)
     } catch (error) {
         if (error instanceof MongooseError.ValidationError) {
@@ -120,7 +125,6 @@ const updateProduct = async (
     }
 }
 
-// TODO: Добавить guard admin
 // DELETE /product
 const deleteProduct = async (
     req: Request,
