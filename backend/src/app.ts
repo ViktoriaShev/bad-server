@@ -9,6 +9,7 @@ import helmet from 'helmet'
 import { DB_ADDRESS } from './config'
 import errorHandler from './middlewares/error-handler'
 import serveStatic from './middlewares/serverStatic'
+import limiter from './middlewares/rate-limit'
 import routes from './routes'
 
 const { PORT = 3000 } = process.env
@@ -33,7 +34,14 @@ app.use(cookieParser())
 app.use(cors({ origin: process.env.ORIGIN_ALLOW, credentials: true }))
 
 app.use(serveStatic(path.join(__dirname, 'public')))
-
+app.use(limiter)
+app.use(
+    cors({
+        origin: process.env.ORIGIN_ALLOW,
+        methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+        credentials: true,
+    })
+)
 app.use(urlencoded({ extended: true }))
 app.use(json())
 
