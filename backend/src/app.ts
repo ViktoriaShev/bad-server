@@ -32,10 +32,10 @@ app.use(
 
 app.use(cookieParser())
 
-app.use(cors({ origin: process.env.ORIGIN_ALLOW, credentials: true }))
+app.use(limiter)
 
 app.use(serveStatic(path.join(__dirname, 'public')))
-app.use(limiter)
+
 app.use(
     cors({
         origin: process.env.ORIGIN_ALLOW,
