@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { FilterQuery, Error as MongooseError, Types } from 'mongoose'
+import sanitizeHtml from 'sanitize-html'
+import escapeRegExp from '../utils/escapeRegExp'
 import BadRequestError from '../errors/bad-request-error'
 import NotFoundError from '../errors/not-found-error'
 import Order, { IOrder } from '../models/order'
@@ -93,7 +95,7 @@ export const getOrders = async (
         ]
 
         if (search) {
-            const searchRegex = new RegExp(search as string, 'i')
+            const searchRegex = new RegExp(escapeRegExp(search as string), 'i')
             const searchNumber = Number(search)
 
             const searchConditions: any[] = [{ 'products.title': searchRegex }]
@@ -311,14 +313,17 @@ export const createOrder = async (
         if (totalBasket !== total) {
             return next(new BadRequestError('Неверная сумма заказа'))
         }
-
+        const cleanComment = sanitizeHtml(comment, {
+            allowedTags: [],
+            allowedAttributes: {},
+        })
         const newOrder = new Order({
             totalAmount: total,
             products: items,
             payment,
             phone,
             email,
-            comment,
+            cleanComment,
             customer: userId,
             deliveryAddress: address,
         })
