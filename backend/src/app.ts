@@ -6,7 +6,6 @@ import express, { json, urlencoded } from 'express'
 import mongoose from 'mongoose'
 import ExpressMongoSanitize from 'express-mongo-sanitize'
 import path from 'path'
-import helmet from 'helmet'
 import { DB_ADDRESS } from './config'
 import errorHandler from './middlewares/error-handler'
 import serveStatic from './middlewares/serverStatic'
@@ -15,20 +14,6 @@ import routes from './routes'
 
 const { PORT = 3000 } = process.env
 const app = express()
-
-app.use(
-    helmet({
-        contentSecurityPolicy: {
-            directives: {
-                defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"], // Отключает inline-скрипты
-                objectSrc: ["'none'"],
-                imgSrc: ["'self'", 'data:'],
-                upgradeInsecureRequests: [],
-            },
-        },
-    })
-)
 
 app.use(cookieParser())
 

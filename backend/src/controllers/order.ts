@@ -90,8 +90,18 @@ export const getOrders = async (
                     as: 'customer',
                 },
             },
-            { $unwind: '$customer' },
-            { $unwind: '$products' },
+            {
+                $unwind: {
+                    path: '$customer',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $unwind: {
+                    path: '$products',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
         ]
 
         if (search) {
@@ -122,7 +132,7 @@ export const getOrders = async (
         aggregatePipeline.push(
             { $sort: sort },
             { $skip: (currentPage - 1) * pageSize },
-            { $limit: pageSize },
+            { $limit: limit },
             {
                 $group: {
                     _id: '$_id',
