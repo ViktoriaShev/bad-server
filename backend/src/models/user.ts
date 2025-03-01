@@ -1,10 +1,10 @@
 /* eslint-disable no-param-reassign */
+import md5 from 'md5'
 import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
 import mongoose, { Document, HydratedDocument, Model, Types } from 'mongoose'
 import validator from 'validator'
-import md5 from 'md5'
-
+/* import bcrypt from 'bcrypt' */
 import { ACCESS_TOKEN, REFRESH_TOKEN } from '../config'
 import UnauthorizedError from '../errors/unauthorized-error'
 
@@ -14,6 +14,7 @@ export enum Role {
 }
 
 export interface IUser extends Document {
+    _id: Types.ObjectId
     name: string
     email: string
     password: string
@@ -49,25 +50,21 @@ const userSchema = new mongoose.Schema<IUser, IUserModel, IUserMethods>(
             minlength: [2, 'Минимальная длина поля "name" - 2'],
             maxlength: [30, 'Максимальная длина поля "name" - 30'],
         },
-        // в схеме пользователя есть обязательные email и password
         email: {
             type: String,
             required: [true, 'Поле "email" должно быть заполнено'],
-            unique: true, // поле email уникально (есть опция unique: true);
+            unique: true,
             validate: {
-                // для проверки email студенты используют validator
                 validator: (v: string) => validator.isEmail(v),
                 message: 'Поле "email" должно быть валидным email-адресом',
             },
         },
-        // поле password не имеет ограничения на длину, т.к. пароль хранится в виде хэша
         password: {
             type: String,
             required: [true, 'Поле "password" должно быть заполнено'],
             minlength: [6, 'Минимальная длина поля "password" - 6'],
             select: false,
         },
-
         tokens: [
             {
                 token: { required: true, type: String },
@@ -80,6 +77,10 @@ const userSchema = new mongoose.Schema<IUser, IUserModel, IUserMethods>(
         },
         phone: {
             type: String,
+            validate: {
+                validator: (v: string) => validator.isMobilePhone(v),
+                message: 'Поле "номер" должно быть валидным номером телефона',
+            },
         },
         lastOrderDate: {
             type: Date,
@@ -102,21 +103,20 @@ const userSchema = new mongoose.Schema<IUser, IUserModel, IUserMethods>(
     {
         versionKey: false,
         timestamps: true,
-        // Возможно удаление пароля в контроллере создания, т.к. select: false не работает в случае создания сущности https://mongoosejs.com/docs/api/document.html#Document.prototype.toJSON()
         toJSON: {
             virtuals: true,
             transform: (_doc, ret) => {
                 delete ret.tokens
                 delete ret.password
-                delete ret._id
                 delete ret.roles
+                delete ret._id
                 return ret
             },
         },
     }
 )
 
-// Возможно добавление хеша в контроллере регистрации
+// Хеширование пароля перед сохранением
 userSchema.pre('save', async function hashingPassword(next) {
     try {
         if (this.isModified('password')) {
@@ -128,59 +128,42 @@ userSchema.pre('save', async function hashingPassword(next) {
     }
 })
 
-// Можно лучше: централизованное создание accessToken и  refresh токена
-
-userSchema.methods.generateAccessToken = function generateAccessToken() {
-    const user = this
-    // Создание accessToken токена возможно в контроллере авторизации
-    return jwt.sign(
-        {
-            _id: user._id.toString(),
-            email: user.email,
-        },
+// Функции для создания токенов
+export const generateAccessToken = (user: IUser) =>
+    jwt.sign(
+        { _id: user._id.toString(), email: user.email },
         ACCESS_TOKEN.secret,
-        {
-            expiresIn: ACCESS_TOKEN.expiry,
-            subject: user.id.toString(),
-        }
+        { expiresIn: ACCESS_TOKEN.expiry, subject: user._id.toString() }
     )
+
+export const generateRefreshToken = async (user: IUser) => {
+    const refreshToken = jwt.sign(
+        { _id: user._id.toString() },
+        REFRESH_TOKEN.secret,
+        { expiresIn: REFRESH_TOKEN.expiry, subject: user._id.toString() }
+    )
+
+    const rTknHash = crypto
+        .createHmac('sha256', REFRESH_TOKEN.secret)
+        .update(refreshToken)
+        .digest('hex')
+
+    user.tokens.push({ token: rTknHash })
+    await user.save()
+
+    return refreshToken
 }
 
-userSchema.methods.generateRefreshToken =
-    async function generateRefreshToken() {
-        const user = this
-        // Создание refresh токена возможно в контроллере авторизации/регистрации
-        const refreshToken = jwt.sign(
-            {
-                _id: user._id.toString(),
-            },
-            REFRESH_TOKEN.secret,
-            {
-                expiresIn: REFRESH_TOKEN.expiry,
-                subject: user.id.toString(),
-            }
-        )
-
-        // Можно лучше: Создаем хеш refresh токена
-        const rTknHash = crypto
-            .createHmac('sha256', REFRESH_TOKEN.secret)
-            .update(refreshToken)
-            .digest('hex')
-
-        // Сохраняем refresh токена в базу данных, можно делать в контроллере авторизации/регистрации
-        user.tokens.push({ token: rTknHash })
-        await user.save()
-
-        return refreshToken
-    }
-
+// Поиск пользователя по email и паролю
 userSchema.statics.findUserByCredentials = async function findByCredentials(
     email: string,
     password: string
 ) {
-    const user = await this.findOne({ email })
-        .select('+password')
-        .orFail(() => new UnauthorizedError('Неправильные почта или пароль'))
+    const user = await this.findOne({ email }).select('+password')
+    if (!user) {
+        throw new UnauthorizedError('Неправильные почта или пароль')
+    }
+
     const passwdMatch = md5(password) === user.password
     if (!passwdMatch) {
         return Promise.reject(
@@ -190,6 +173,7 @@ userSchema.statics.findUserByCredentials = async function findByCredentials(
     return user
 }
 
+// Вычисление статистики заказов
 userSchema.methods.calculateOrderStats = async function calculateOrderStats() {
     const user = this
     const orderStats = await mongoose.model('order').aggregate([
@@ -220,6 +204,7 @@ userSchema.methods.calculateOrderStats = async function calculateOrderStats() {
 
     await user.save()
 }
+
 const UserModel = mongoose.model<IUser, IUserModel>('user', userSchema)
 
 export default UserModel

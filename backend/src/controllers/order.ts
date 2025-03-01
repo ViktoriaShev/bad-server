@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { FilterQuery, Error as MongooseError, Types } from 'mongoose'
+import sanitizeHtml from 'sanitize-html'
+import escapeRegExp from '../utils/escapeRegExp'
 import BadRequestError from '../errors/bad-request-error'
 import NotFoundError from '../errors/not-found-error'
 import Order, { IOrder } from '../models/order'
@@ -8,7 +10,6 @@ import User from '../models/user'
 
 // eslint-disable-next-line max-len
 // GET /orders?page=2&limit=5&sort=totalAmount&order=desc&orderDateFrom=2024-07-01&orderDateTo=2024-08-01&status=delivering&totalAmountFrom=100&totalAmountTo=1000&search=%2B1
-
 export const getOrders = async (
     req: Request,
     res: Response,
@@ -17,7 +18,6 @@ export const getOrders = async (
     try {
         const {
             page = 1,
-            limit = 10,
             sortField = 'createdAt',
             sortOrder = 'desc',
             status,
@@ -28,6 +28,10 @@ export const getOrders = async (
             search,
         } = req.query
 
+        // Ограничиваем лимит до 10
+        const limit = Math.min(Math.max(Number(req.query.limit), 1), 10)
+        const pageSize = Math.min(Number(limit) || 10, 10)
+        const currentPage = Math.max(Number(page) || 1, 1)
         const filters: FilterQuery<Partial<IOrder>> = {}
 
         if (status) {
@@ -85,12 +89,22 @@ export const getOrders = async (
                     as: 'customer',
                 },
             },
-            { $unwind: '$customer' },
-            { $unwind: '$products' },
+            {
+                $unwind: {
+                    path: '$customer',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $unwind: {
+                    path: '$products',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
         ]
 
         if (search) {
-            const searchRegex = new RegExp(search as string, 'i')
+            const searchRegex = new RegExp(escapeRegExp(search as string), 'i')
             const searchNumber = Number(search)
 
             const searchConditions: any[] = [{ 'products.title': searchRegex }]
@@ -116,8 +130,8 @@ export const getOrders = async (
 
         aggregatePipeline.push(
             { $sort: sort },
-            { $skip: (Number(page) - 1) * Number(limit) },
-            { $limit: Number(limit) },
+            { $skip: (currentPage - 1) * pageSize },
+            { $limit: limit },
             {
                 $group: {
                     _id: '$_id',
@@ -133,15 +147,15 @@ export const getOrders = async (
 
         const orders = await Order.aggregate(aggregatePipeline)
         const totalOrders = await Order.countDocuments(filters)
-        const totalPages = Math.ceil(totalOrders / Number(limit))
+        const totalPages = Math.ceil(totalOrders / pageSize)
 
         res.status(200).json({
             orders,
             pagination: {
                 totalOrders,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage,
+                pageSize,
             },
         })
     } catch (error) {
@@ -308,14 +322,17 @@ export const createOrder = async (
         if (totalBasket !== total) {
             return next(new BadRequestError('Неверная сумма заказа'))
         }
-
+        const cleanComment = sanitizeHtml(comment, {
+            allowedTags: [],
+            allowedAttributes: {},
+        })
         const newOrder = new Order({
             totalAmount: total,
             products: items,
             payment,
             phone,
             email,
-            comment,
+            cleanComment,
             customer: userId,
             deliveryAddress: address,
         })

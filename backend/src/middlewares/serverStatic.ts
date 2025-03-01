@@ -13,7 +13,9 @@ export default function serveStatic(baseDir: string) {
                 // Файл не существует отдаем дальше мидлварам
                 return next()
             }
-            // Файл существует, отправляем его клиенту
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+
             return res.sendFile(filePath, (err) => {
                 if (err) {
                     next(err)
