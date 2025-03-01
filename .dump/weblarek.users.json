@@ -1,11 +1,11 @@
 [
   {
     "_id": {
-      "$oid": "67c0a3bb4b36b03fff3fa3fe"
+      "$oid": "67c316e27c049f314105a325"
     },
     "name": "Admin",
-    "email": "adminRoot1@mail.ru",
-    "password": "$2b$10$IaJ084otM.h1wSqqlbt3r.2/VeXEYJaTYS0EvSlw01/sH9h0PnUUe",
+    "email": "adminRoot@mail.ru",
+    "password": "5f4dcc3b5aa765d61d8327deb882cf99",
     "roles": ["admin"],
     "lastOrderDate": null,
     "lastOrder": null,
@@ -21,19 +21,19 @@
       }
     ],
     "createdAt": {
-      "$date": "2025-02-27T17:41:15.600Z"
+      "$date": "2025-03-01T14:17:06.839Z"
     },
     "updatedAt": {
-      "$date": "2025-02-27T17:41:15.656Z"
+      "$date": "2025-03-01T14:19:14.988Z"
     }
   },
   {
     "_id": {
-      "$oid": "67c166e739580ef201d2da07"
+      "$oid": "67c317805bf6c84f05156429"
     },
-    "name": "First Customer",
-    "email": "user1root@mail.ru",
-    "password": "$2b$10$ZaY37dUkESppLaUy.cgWweQLOeM0RxB438x93EJNpRaJ27NyYnqTe",
+    "name": "User",
+    "email": "userName@mail.ru",
+    "password": "5f4dcc3b5aa765d61d8327deb882cf99",
     "roles": ["customer"],
     "lastOrderDate": null,
     "lastOrder": null,
@@ -42,17 +42,17 @@
     "orders": [],
     "tokens": [
       {
-        "token": "f96b41ef0c494a767e4dbf7a6266469d19289ac82e149bcbb4043e3692cfa297",
+        "token": "39b1db76d2fdb46d531fea3cec7bb7841deee458828e17b503e94bcd3b9905f0",
         "_id": {
-          "$oid": "67c166e739580ef201d2da09"
+          "$oid": "67c317805bf6c84f0515642b"
         }
       }
     ],
     "createdAt": {
-      "$date": "2025-02-28T07:33:59.777Z"
+      "$date": "2025-03-01T14:19:44.261Z"
     },
     "updatedAt": {
-      "$date": "2025-02-28T07:33:59.928Z"
+      "$date": "2025-03-01T14:19:44.272Z"
     }
   }
 ]

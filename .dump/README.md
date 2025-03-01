@@ -2,13 +2,13 @@
 
 #### Default admin
 
-- login: `adminRoot1@mail.ru`
+- login: `adminRoot@mail.ru`
 - password: `password`
 
 #### Customer 1
 
-- login: `user1root@mail.ru`
-- password: `password1`
+- login: `userName@mail.ru`
+- password: `password`
 
 # How to restore database
 
