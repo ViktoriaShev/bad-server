@@ -1,44 +1,38 @@
-import { Request, NextFunction, Response, Express } from 'express'
+import { Request, Express } from 'express'
 import multer, { FileFilterCallback } from 'multer'
-import { join, extname } from 'path'
-import { promises as fs } from 'fs'
-import { randomUUID } from 'crypto'
+import { join } from 'path'
+import fs from 'fs'
+import crypto from 'crypto'
 
 type DestinationCallback = (error: Error | null, destination: string) => void
 type FileNameCallback = (error: Error | null, filename: string) => void
 
-const fileSizeLimits = {
-    minFileSize: 2048, // 2 KB
+export const fileSizeLimits = {
+    minFileSize: 2048,
     maxFileSize: 10485760, // 10 MB
 }
 
 const storage = multer.diskStorage({
-    destination: async (
+    destination: (
         _req: Request,
         _file: Express.Multer.File,
         cb: DestinationCallback
     ) => {
-        try {
-            const destinationPath = join(
-                __dirname,
-                process.env.UPLOAD_PATH_TEMP
-                    ? `../public/${process.env.UPLOAD_PATH_TEMP}`
-                    : '../public'
-            )
+        const destinationPath = join(
+            __dirname,
+            process.env.UPLOAD_PATH_TEMP
+                ? `../public/${process.env.UPLOAD_PATH_TEMP}`
+                : '../public'
+        )
 
-            console.log('Destination Path:', destinationPath)
+        console.log('Destination Path:', destinationPath)
 
-            try {
-                await fs.access(destinationPath)
-            } catch {
-                await fs.mkdir(destinationPath, { recursive: true })
-                console.log(`Directory created: ${destinationPath}`)
-            }
-
-            cb(null, destinationPath)
-        } catch (err) {
-            cb(err as Error, '')
+        if (!fs.existsSync(destinationPath)) {
+            fs.mkdirSync(destinationPath, { recursive: true })
+            console.log(`Directory created: ${destinationPath}`)
         }
+
+        cb(null, destinationPath)
     },
 
     filename: (
@@ -46,13 +40,12 @@ const storage = multer.diskStorage({
         file: Express.Multer.File,
         cb: FileNameCallback
     ) => {
-        const uniqueName = randomUUID()
-        const fileExtension = extname(file.originalname)
-        cb(null, `${uniqueName}${fileExtension}`)
+        const uniqueName = crypto.randomBytes(5).toString('hex')
+        cb(null, `${uniqueName}${file.originalname}`)
     },
 })
 
-const allowedMimeTypes = [
+const types = [
     'image/png',
     'image/jpg',
     'image/jpeg',
@@ -67,43 +60,21 @@ const fileFilter = (
 ) => {
     console.log('File type:', file.mimetype)
 
-    if (!allowedMimeTypes.includes(file.mimetype)) {
+    if (!types.includes(file.mimetype)) {
+        return cb(null, false)
+    }
+
+    if (file.size < fileSizeLimits.minFileSize) {
         return cb(null, false)
     }
 
     return cb(null, true)
 }
-const upload = multer({
+
+export default multer({
     storage,
     fileFilter,
     limits: {
         fileSize: fileSizeLimits.maxFileSize,
     },
-}).single('file')
-
-export const uploadMiddleware = (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    upload(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: err.message })
-        }
-        if (err) {
-            return res.status(400).json({ message: err.message })
-        }
-
-        if (!req.file) {
-            return res.status(400).json({ message: 'Файл не загружен' })
-        }
-
-        if (req.file.size < fileSizeLimits.minFileSize) {
-            return res
-                .status(400)
-                .json({ message: 'Файл слишком маленький (менее 2 KB)' })
-        }
-
-        next()
-    })
-}
+})
