@@ -8,8 +8,8 @@ type DestinationCallback = (error: Error | null, destination: string) => void
 type FileNameCallback = (error: Error | null, filename: string) => void
 
 export const fileSizeLimits = {
-    minFileSize: 2048,
-    maxFileSize: 10485760, // 10 MB
+    minFileSize: 2 * 1024,
+    maxFileSize: 10 * 1024 * 1024, // 10 MB
 }
 
 const storage = multer.diskStorage({
