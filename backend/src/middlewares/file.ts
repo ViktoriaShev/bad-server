@@ -64,10 +64,6 @@ const fileFilter = (
         return cb(null, false)
     }
 
-    if (file.size < fileSizeLimits.minFileSize) {
-        return cb(null, false)
-    }
-
     return cb(null, true)
 }
 
