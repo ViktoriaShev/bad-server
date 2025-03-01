@@ -14,7 +14,6 @@ export const getCustomers = async (
 ) => {
     try {
         const {
-            page = 1,
             sortField = 'createdAt',
             sortOrder = 'desc',
             registrationDateFrom,
@@ -30,6 +29,7 @@ export const getCustomers = async (
 
         const limit = Math.min(Number(req.query.limit) || 10, 10)
         const filters: FilterQuery<Partial<IUser>> = {}
+        const page = Math.min(Number(limit) || 10, 10)
 
         if (registrationDateFrom) {
             filters.createdAt = {
@@ -139,14 +139,15 @@ export const getCustomers = async (
 
         const totalUsers = await User.countDocuments(filters)
         const totalPages = Math.ceil(totalUsers / Number(limit))
+        const currentPage = Math.max(Number(page) || 1, 1)
 
         res.status(200).json({
             customers: users,
             pagination: {
                 totalUsers,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage: Number(currentPage),
+                pageSize: Number(page),
             },
         })
     } catch (error) {

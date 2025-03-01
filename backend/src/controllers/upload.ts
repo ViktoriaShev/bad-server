@@ -1,5 +1,3 @@
-import path from 'path'
-import { randomUUID } from 'crypto'
 import { NextFunction, Request, Response } from 'express'
 import { constants } from 'http2'
 import BadRequestError from '../errors/bad-request-error'
@@ -20,16 +18,12 @@ export const uploadFile = async (
     }
 
     try {
-        const ext = path.extname(req.file.originalname) // Получаем расширение файла
-        const uniqueName = `${randomUUID()}${ext}` // Генерируем уникальное имя
-
         const fileName = process.env.UPLOAD_PATH
-            ? `${process.env.UPLOAD_PATH}/${uniqueName}`
-            : `/${uniqueName}`
-
+            ? `/${process.env.UPLOAD_PATH}/${req.file.filename}`
+            : `/${req.file?.filename}`
         return res.status(constants.HTTP_STATUS_CREATED).send({
             fileName,
-            originalName: req.file.originalname, // Оригинальное имя можно оставить для справки
+            originalName: req.file?.originalname,
         })
     } catch (error) {
         return next(error)

@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { rename } from 'fs/promises'
+import { rename, mkdir } from 'fs/promises'
 import { basename, join } from 'path'
 
 async function movingFile(imagePath: string, from: string, to: string) {
@@ -12,6 +12,8 @@ async function movingFile(imagePath: string, from: string, to: string) {
     }
 
     try {
+        // Создаем конечную директорию, если она не существует
+        await mkdir(to, { recursive: true })
         await rename(imagePathTemp, imagePathPermanent)
         console.log(
             `Файл успешно перемещён: ${imagePathTemp} → ${imagePathPermanent}`
