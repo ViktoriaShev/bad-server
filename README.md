@@ -55,26 +55,26 @@ docker compose up -d
 
 ### Backend (weblarek_backend)
 
-Node.js — ^20.17.19 (через @types/node)
-TypeScript — ^5.4.5
-Express.js — ^4.19.2
-Mongoose (для работы с MongoDB) — ^8.3.2
-JWT (JSON Web Token) — ^9.0.2
-Bcrypt (для хеширования паролей) — ^5.1.1
-Helmet (для защиты HTTP-заголовков) — ^8.0.0
-CORS (для обеспечения безопасности кросс-доменных запросов) — ^2.8.5
-Express Rate Limit (для ограничения количества запросов) — ^7.5.0
-XSS (для защиты от атак Cross-Site Scripting) — ^1.0.15
-Express Mongo Sanitize (для защиты от инъекций в MongoDB) — ^2.2.0
-Validator (для валидации данных) — ^13.12.0
+Node.js — ^20.17.19 (через @types/node) \
+TypeScript — ^5.4.5 \
+Express.js — ^4.19.2 \
+Mongoose (для работы с MongoDB) — ^8.3.2 \
+JWT (JSON Web Token) — ^9.0.2 \
+Bcrypt (для хеширования паролей) — ^5.1.1 \
+Helmet (для защиты HTTP-заголовков) — ^8.0.0 \
+CORS (для обеспечения безопасности кросс-доменных запросов) — ^2.8.5 \
+Express Rate Limit (для ограничения количества запросов) — ^7.5.0 \
+XSS (для защиты от атак Cross-Site Scripting) — ^1.0.15 \
+Express Mongo Sanitize (для защиты от инъекций в MongoDB) — ^2.2.0 \
+Validator (для валидации данных) — ^13.12.0 \
 
 ### Frontend (weblarek_frontend)
-React — ^18.2.0
-React DOM — ^18.2.0
-Redux Toolkit — ^2.2.5
-React Router DOM — ^6.23.1
-Vite (сборщик) — ^5.2.0
-TypeScript — ^5.2.2
-React-Redux (для работы с состоянием через Redux) — ^9.1.2
+React — ^18.2.0 \
+React DOM — ^18.2.0 \
+Redux Toolkit — ^2.2.5 \
+React Router DOM — ^6.23.1 \
+Vite (сборщик) — ^5.2.0 \
+TypeScript — ^5.2.2 \
+React-Redux (для работы с состоянием через Redux) — ^9.1.2 \
 
 
